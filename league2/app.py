@@ -1,6 +1,5 @@
 import pygame
 import os
-import ctypes
 import json
 import appdirs
 import league2.assets
@@ -63,6 +62,7 @@ class Settings:
         self.__native_size = pygame.display.Info().current_w, pygame.display.Info().current_h
         self.__fps = 40
         self.__asset_folder = '../assets'
+        self.__preload_files = []
         self.__custom = {}
 
         # If there is no settings file then we will create one with the default settings.
@@ -86,6 +86,7 @@ class Settings:
         self.__game_size = data['size']
         self.__fps = data['fps']
         self.__asset_folder = data['assets']
+        self.__preload_files = data['preload']
         self.__custom = data['custom']
 
     def save(self, fname: str):
@@ -100,6 +101,7 @@ class Settings:
             'size': self.__game_size,
             'fps': self.__fps,
             'assets': self.__asset_folder,
+            'preload': self.__preload_files,
             'custom': self.__custom
         }
 
@@ -172,14 +174,7 @@ class Settings:
         :return: The size as a tuple.
         """
         if self.__fullscreen:
-            # On Windows, processes that are not marked as DPI aware will automatically be scaled up on
-            # high DPI displays. This means that if we set the screen to be fullscreen, it will be scaled up
-            # to be larger than the screen. To fix this Windows specific problem, we will use the Win32 API
-            # to get the native resolution since it takes DPI scaling into account.
-            if os.name == 'nt':
-                return ctypes.windll.user32.GetSystemMetrics(0), ctypes.windll.user32.GetSystemMetrics(1)
-            else:
-                return self.__native_size
+            return self.__native_size
         else:
             return self.__game_size
 
@@ -214,6 +209,22 @@ class Settings:
         :param folder: A path to the folder to get assets from.
         """
         self.__asset_folder = folder
+
+    def set_preload_files(self, files: typing.List[str]):
+        """
+        These files will be loaded on the main thread and not on the asset
+        loading thread. This is done because a loading screen also needs assets
+        which will need to be loaded before we can display it and load the rest.
+        :param files: A list of files to load on the main thread causing it to block for a while.
+        """
+        self.__preload_files = files
+
+    def get_preload_files(self) -> typing.List[str]:
+        """
+        A list of the assets to load before the game starts and not on the loading thread.
+        :return: A list of file names.
+        """
+        return self.__preload_files
 
     def set_custom_setting(self, setting: str, data: typing.Union[int, float, bool, str]):
         """
@@ -263,6 +274,9 @@ class Application:
         self.__configure_screen(self.__settings.get_size())
         self.apply_settings()
         self.__buffer.fill((100, 149, 237))
+
+        # Finally start loading assets.
+        self.__assets.start(self.__settings.get_preload_files())
 
     def __get_scaled_size(self):
         bx, by = self.__screen.get_size()
@@ -346,6 +360,9 @@ class Application:
         """
         while not self.__done:
             for event in pygame.event.get():
+                if event.type == pygame.KEYDOWN:
+                    if event.key == pygame.K_ESCAPE:
+                        self.__done = True
                 if event.type == pygame.QUIT:
                     self.__done = True
                 elif event.type == pygame.VIDEORESIZE:
