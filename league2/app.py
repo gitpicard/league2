@@ -359,6 +359,7 @@ class Application:
         Enters the main game loop and starts rendering and updating the game.
         """
         while not self.__done:
+            resize = None
             for event in pygame.event.get():
                 if event.type == pygame.KEYDOWN:
                     if event.key == pygame.K_ESCAPE:
@@ -366,7 +367,13 @@ class Application:
                 if event.type == pygame.QUIT:
                     self.__done = True
                 elif event.type == pygame.VIDEORESIZE:
-                    self.__configure_screen((event.w, event.h))
+                    # We don't want to handle the resize here because some window managers spam the resize
+                    # event and it would result in us processing several slow resize event in a single frame. Just
+                    # cache the size and wait until we processed them all.
+                    resize = event.w, event.h
+            if resize is not None:
+                self.__configure_screen(resize)
+                resize = None
 
             frame_time = self.__clock.tick(self.__settings.get_fps())
 
