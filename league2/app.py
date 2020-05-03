@@ -58,7 +58,9 @@ class Settings:
         """
         self.__title = 'Made with League 2'
         self.__fullscreen = False
+        self.__resizable = True
         self.__game_size = (640, 480)
+        self.__size = self.__game_size
         self.__native_size = pygame.display.Info().current_w, pygame.display.Info().current_h
         self.__fps = 40
         self.__asset_folder = '../assets'
@@ -133,7 +135,25 @@ class Settings:
         if self.__fullscreen:
             return pygame.FULLSCREEN | pygame.DOUBLEBUF | pygame.HWSURFACE
         else:
-            return pygame.RESIZABLE
+            if self.__resizable:
+                return pygame.RESIZABLE
+            return 0
+
+    def get_resizeable(self) -> bool:
+        """
+        Can the window be resized by the user? Allow allows the maximize button.
+        :return: True if the window can be resized.
+        """
+        return self.__resizable
+
+    def set_resizable(self, resizable: bool):
+        """
+        Allows the window to be resized by the user. On some Linux distributions and some
+        versions of pygame, resizing does not work very well. If this is the case, update to
+        pygame 2.0.0dev8 or later.
+        :param resizable: True if the window can be resized.
+        """
+        self.__resizable = resizable
 
     def get_fullscreen(self) -> bool:
         """
@@ -176,7 +196,15 @@ class Settings:
         if self.__fullscreen:
             return self.__native_size
         else:
-            return self.__game_size
+            return self.__size
+
+    def set_size(self, size: typing.Tuple[int, int]):
+        """
+        Set the render resolution of the window. This will change the size of the actual window. The
+        size will be ignored when running fullscreen as fullscreen is always done at the native resolution.
+        :param size: The new size of the window in pixels.
+        """
+        self.__size = size
 
     def get_fps(self) -> float:
         """
@@ -345,8 +373,9 @@ class Application:
             self.__buffer = pygame.Surface(self.__settings.get_buffer_size())
         size = self.__screen.get_size()
         # If we are going fullscreen we can't just use the same size again like we can for windowed mode because
-        # the screen will be a different size.
-        if self.__settings.get_fullscreen():
+        # the screen will be a different size. If the window is not resizable we will also use the size from the
+        # settings.
+        if self.__settings.get_fullscreen() or not self.__settings.get_resizeable():
             size = self.__settings.get_size()
         self.__configure_screen(size)
         # Update where we get assets from.
