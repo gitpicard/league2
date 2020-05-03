@@ -26,6 +26,9 @@ class TileSheet:
         self.__cols = cols
         self.__cell_width = surface.get_width() // cols
         self.__cell_height = surface.get_height() // rows
+        # Rather than creating a new sub-surface any time that a particular tile is requested, it is
+        # better to cache them here and return the same one.
+        self.__cached = {}
 
     def get_max_rows(self) -> int:
         """
@@ -50,9 +53,13 @@ class TileSheet:
         :param column: The column (starting at zero) to look at.
         :return: The tile as a pygame sub-surface.
         """
-        x = column * self.__cell_width
-        y = row * self.__cell_height
-        return self.__surface.subsurface((x, y, self.__cell_width, self.__cell_height))
+        if not (row, column) in self.__cached:
+            # We have never requested this tile before so we need to generate it for the first time. After
+            # this we can just reuse this same surface.
+            x = column * self.__cell_width
+            y = row * self.__cell_height
+            self.__cached[(row, column)] = self.__surface.subsurface((x, y, self.__cell_width, self.__cell_height))
+        return self.__cached[(row, column)]
 
 
 class SpriteSheet:
