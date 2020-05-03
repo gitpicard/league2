@@ -24,8 +24,8 @@ class TileSheet:
         self.__surface = surface
         self.__rows = rows
         self.__cols = cols
-        self.__cell_width = surface.get_width() / cols
-        self.__cell_height = surface.get_height() / rows
+        self.__cell_width = surface.get_width() // cols
+        self.__cell_height = surface.get_height() // rows
 
     def get_max_rows(self) -> int:
         """
@@ -56,7 +56,15 @@ class TileSheet:
 
 
 class SpriteSheet:
-    pass
+    def __init__(self, surface: pygame.Surface):
+        self.__surface = surface
+        self.__packed = {}
+
+    def add(self, name: str, rect: pygame.Rect):
+        self.__packed[name] = rect
+
+    def get_sprite(self, name: str):
+        return self.__surface.subsurface(self.__packed[name])
 
 
 class AssetManager:

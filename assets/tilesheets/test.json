@@ -1,6 +1,6 @@
 {
   "type": "tilesheet",
-  "alpha": false,
-  "rows": 16,
+  "alpha": true,
+  "rows": 48,
   "columns": 64
 }
