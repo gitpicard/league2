@@ -4,6 +4,7 @@ import json
 import appdirs
 import league2.assets
 import typing
+import abc
 
 
 def get_settings_path(app:  str, company: str) -> str:
@@ -285,7 +286,7 @@ class Settings:
         return self.__custom[setting]
 
 
-class Application:
+class Application(abc.ABC):
     """
     The core component of a game. This will receive and process all the life-cycle events of the
     game. It will render and play the game according to the settings given to it.
@@ -352,6 +353,13 @@ class Application:
         self.__scaled_buffer.set_alpha(None)
         self.__screen_dirty.append(self.__screen.fill((0, 0, 0)))
 
+    def get_surface(self) -> pygame.Surface:
+        """
+        Get the surface that will be displayed on screen.
+        :return: The pygame surface to render to.
+        """
+        return self.__buffer
+
     def get_settings(self) -> Settings:
         """
         Get the settings that are used to configure this game.
@@ -409,7 +417,11 @@ class Application:
                 self.__configure_screen(resize)
                 resize = None
 
-            frame_time = self.__clock.tick(self.__settings.get_fps())
+            frame_time = self.__clock.tick(self.__settings.get_fps()) / 1000
+
+            # Let the game handle updating and drawing it's state.
+            self.on_update(frame_time)
+            self.on_draw(frame_time)
 
             # Scale our game up so that it fits nicely onto the screen without any stretching or showing more
             # of the game. We scale up to preserve aspect ratio. This is one of the slower parts of the game
@@ -427,6 +439,23 @@ class Application:
             self.__screen_dirty.append(self.__screen.blit(self.__scaled_buffer, final_pos))
             pygame.display.update(self.__screen_dirty)
             self.__screen_dirty.clear()
+
+    @abc.abstractmethod
+    def on_update(self, frame_time: float):
+        """
+        Abstract method implemented by your game. Called each frame by the engine to update the game state.
+        :param frame_time: The time, in seconds, that the last frame took.
+        """
+        pass
+
+    @abc.abstractmethod
+    def on_draw(self, frame_time: float):
+        """
+        Abstract method implemented by your game. Called each frame by the engine to render the state to
+        the screen.
+        :param frame_time: The time, in seconds, that the last frame took.
+        """
+        pass
 
 
 def init():
