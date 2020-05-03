@@ -75,6 +75,7 @@ class AssetManager:
         :param root: The directory that will be searched for assets.
         """
         self.__root = root
+        self.__lock = threading.Lock()
         self.__finished = True
         self.__loaded_files = 0
         self.__files = []
@@ -91,13 +92,14 @@ class AssetManager:
         # thread so the game can keep running.
         pygame.time.wait(100)
 
-        self.__finished = False
         for fname in self.__files:
             self.__load_file(fname)
-            self.__loaded_files = self.__loaded_files + 1
+            with self.__lock:
+                self.__loaded_files += 1
         # Finished loading!
         self.__files.clear()
-        self.__finished = True
+        with self.__lock:
+            self.__finished = True
 
     def __fill_defaults(self, ext):
         # Base on the passed in file extension, we will try and guess the correct settings
@@ -115,10 +117,13 @@ class AssetManager:
         if fname in self.__cached_files:
             return
         # Assets are looked up via their name but that name does not include the file
-        # extension.
+        # extension. The name is also relative to the base asset directory.
         n = os.path.splitext(pathlib.Path(fname).relative_to(self.__root))[0]
         # Individual assets are loaded based on their file type.
         ext = os.path.splitext(fname)[1]
+
+        # Make sure to use a cross-platform name with cross-platform separators.
+        n = n.replace('\\', '/')
 
         self.__cached_files.append(fname)
 
@@ -131,13 +136,14 @@ class AssetManager:
             json_file.close()
         # Based on the asset type, load it correctly.
         if data['type'] == 'sprite':
-            self.__surfaces[n] = pygame.image.load(fname)
-            # Each surface can have transparency enabled or disabled.
-            if data['alpha']:
-                self.__surfaces[n] = self.__surfaces[n].convert_alpha()
-            else:
-                self.__surfaces[n] = self.__surfaces[n].convert()
-                self.__surfaces[n].set_alpha(None)
+            with self.__lock:
+                self.__surfaces[n] = pygame.image.load(fname)
+                # Each surface can have transparency enabled or disabled.
+                if data['alpha']:
+                    self.__surfaces[n] = self.__surfaces[n].convert_alpha()
+                else:
+                    self.__surfaces[n] = self.__surfaces[n].convert()
+                    self.__surfaces[n].set_alpha(None)
         elif data['type'] == 'tilesheet':
             image = pygame.image.load(fname)
             # Like all visuals in league, transparency can be disabled for performance and often will
@@ -146,7 +152,8 @@ class AssetManager:
                 image = image.convert_alpha()
             else:
                 image = image.convert()
-            self.__tilesheets[n] = TileSheet(image, data['rows'], data['columns'])
+            with self.__lock:
+                self.__tilesheets[n] = TileSheet(image, data['rows'], data['columns'])
         else:
             raise IOError('Unidentified asset of type %s.' % data['type'])
 
@@ -161,6 +168,9 @@ class AssetManager:
         :param preload: A list of assets to load right away.
         :param root: Optionally provide a new root folder for assets to be found in.
         """
+        if not self.__finished:
+            raise RuntimeError('Unable to start loading when a load is still in progress.')
+
         if root is not None:
             self.__root = root
         # Find all the files in our asset folder that we can load.
@@ -176,6 +186,7 @@ class AssetManager:
         # to load on the main thread rather than in the background.
         for fname in preload:
             self.__load_file(fname)
+        self.__finished = False
         threading.Thread(target=self.__load).start()
 
     def is_finished(self) -> bool:
@@ -183,14 +194,16 @@ class AssetManager:
         Is the asset loading thread finished loading?
         :return: True if no more assets are being loaded.
         """
-        return self.__finished
+        with self.__lock:
+            return self.__finished
 
     def get_progress(self) -> float:
         """
         Get the percentage of files loaded.
         :return: Returns 1 when complete and 0 if no files are loaded.
         """
-        return self.__loaded_files / len(self.__files)
+        with self.__lock:
+            return self.__loaded_files / len(self.__files)
 
     def get_surface(self, name: str) -> pygame.Surface:
         """
@@ -199,7 +212,8 @@ class AssetManager:
         :param name: The name of the asset (without the extension).
         :return: The cached pygame surface.
         """
-        return self.__surfaces[name]
+        with self.__lock:
+            return self.__surfaces[name]
 
     def get_tilesheet(self, name: str) -> TileSheet:
         """
@@ -207,4 +221,5 @@ class AssetManager:
         :param name: The name of the tile-sheet (without the extension).
         :return: The cached tile-sheet asset.
         """
-        return self.__tilesheets[name]
+        with self.__lock:
+            return self.__tilesheets[name]
