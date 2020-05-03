@@ -53,7 +53,7 @@ class TileSheet:
         :param column: The column (starting at zero) to look at.
         :return: The tile as a pygame sub-surface.
         """
-        if not (row, column) in self.__cached:
+        if (row, column) not in self.__cached:
             # We have never requested this tile before so we need to generate it for the first time. After
             # this we can just reuse this same surface.
             x = column * self.__cell_width
@@ -63,15 +63,41 @@ class TileSheet:
 
 
 class SpriteSheet:
+    """
+    A sprite-sheet is similar to a tile-sheet in that it can hold several sub-images in one image. The difference
+    is that a sprite-sheet does not require the items to fit on a grid. This allows for a tighter and more
+    optimized packing since sprites tend to be irregular shapes vs. tiles that are just squares.
+    """
     def __init__(self, surface: pygame.Surface):
+        """
+        Create a new sprite-sheet from a surface. All the images will be loaded from this surface. Initially,
+        there are no sub-surfaces and they have to be added after creation or they are loaded automatically from a
+        JSON file.
+        :param surface: The surface to use.
+        """
         self.__surface = surface
+        self.__cached = {}
         self.__packed = {}
 
-    def add(self, name: str, rect: pygame.Rect):
+    def add_sprite(self, name: str, rect: pygame.Rect):
+        """
+        Add a new sprite to the sheet. The name must be unique and the rectangle should represent the location
+        on the sheet where the sprite is found.
+        :param name: The name of the child sprite.
+        :param rect: A rectangle of the source location.
+        """
         self.__packed[name] = rect
 
-    def get_sprite(self, name: str):
-        return self.__surface.subsurface(self.__packed[name])
+    def get_sprite(self, name: str) -> pygame.Surface:
+        """
+        Find a sprite based off of its name on the sprite-sheet. Sprites will be cached for better performance
+        when requesting the same sprite again.
+        :param name: The name of the sprite to look up.
+        :return: A sub-surface that shares pixels with the parent surface.
+        """
+        if name not in self.__cached:
+            self.__cached[name] = self.__surface.subsurface(self.__packed[name])
+        return self.__cached[name]
 
 
 class AssetManager:
@@ -98,6 +124,7 @@ class AssetManager:
         self.__exts = self.__image_exts
         self.__surfaces = {}
         self.__tilesheets = {}
+        self.__spritesheets = {}
 
     def __load(self):
         # This wait call is awful but it is needed because if we are starting to load and we just switched to
@@ -163,7 +190,20 @@ class AssetManager:
                 image = image.convert_alpha()
             else:
                 image = image.convert()
+                image.set_alpha(None)
             self.__tilesheets[n] = TileSheet(image, data['rows'], data['columns'])
+        elif data['type'] == 'spritesheet':
+            image = pygame.image.load(fname)
+            if data['alpha']:
+                image = image.convert_alpha()
+            else:
+                image = image.convert()
+                image.set_alpha(None)
+            self.__spritesheets[n] = SpriteSheet(image)
+            # All the child sprites are defined by a name in a list and a rectangle created from
+            # an array of integers.
+            for spr in data['sprites'].keys():
+                self.__spritesheets[n].add_sprite(spr, tuple(data['sprites'][spr]))
         else:
             raise IOError('Unidentified asset of type %s.' % data['type'])
 
@@ -229,3 +269,11 @@ class AssetManager:
         :return: The cached tile-sheet asset.
         """
         return self.__tilesheets[name]
+
+    def get_spritesheet(self, name: str) -> SpriteSheet:
+        """
+        Find a sprite-sheet that was automatically loaded.
+        :param name: The name of the sprite-sheet (without the extension).
+        :return: The cached sprite-sheet asset.
+        """
+        return self.__spritesheets[name]
