@@ -309,7 +309,9 @@ class Application(abc.ABC):
         self.apply_settings()
         self.__buffer.fill((100, 149, 237))
 
-        # Finally start loading assets.
+        # Finally start loading assets. Assets will always automatically start to load
+        # when the game starts. It is the game's responsibility to make sure that they
+        # are all loaded before doing anything.
         self.__assets.start(self.__settings.get_preload_files())
 
     def __get_scaled_size(self):
@@ -400,6 +402,8 @@ class Application(abc.ABC):
         """
         Enters the main game loop and starts rendering and updating the game.
         """
+        self.on_start()
+
         while not self.__done:
             resize = None
             for event in pygame.event.get():
@@ -439,6 +443,23 @@ class Application(abc.ABC):
             self.__screen_dirty.append(self.__screen.blit(self.__scaled_buffer, final_pos))
             pygame.display.update(self.__screen_dirty)
             self.__screen_dirty.clear()
+
+        self.on_end()
+
+    @abc.abstractmethod
+    def on_start(self):
+        """
+        Called by the engine when the game is first starting.
+        """
+        pass
+
+    @abc.abstractmethod
+    def on_end(self):
+        """
+        Called by the engine when the game loop has finished and the game is about to end.
+        :return:
+        """
+        pass
 
     @abc.abstractmethod
     def on_update(self, frame_time: float):

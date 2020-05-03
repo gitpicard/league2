@@ -6,6 +6,59 @@ import typing
 import pathlib
 
 
+class TileSheet:
+    """
+    A tile-sheet is a grid of tiles that are stored on a single surface rather than having a
+    surface for each tile. This improves memory usage and loading times as only a single file
+    needs to be processed. A tile-sheet has the tiles in a grid, if you want to pack the surfaces
+    differently use a sprite-sheet.
+    """
+    def __init__(self, surface: pygame.Surface, rows: int, cols: int):
+        """
+        Create a new tile-sheet from a pygame surface. The size of each tile will be calculated
+        automatically from the number of rows and columns.
+        :param surface: The surface containing the tile data.
+        :param rows: The number of rows on the sheet.
+        :param cols: The number of tiles on the sheet.
+        """
+        self.__surface = surface
+        self.__rows = rows
+        self.__cols = cols
+        self.__cell_width = surface.get_width() / cols
+        self.__cell_height = surface.get_height() / rows
+
+    def get_max_rows(self) -> int:
+        """
+        How many rows are there on this sheet?
+        :return: The number of rows as an integer.
+        """
+        return self.__rows
+
+    def get_max_columns(self) -> int:
+        """
+        How many columns are there on this sheet?
+        :return: The number of columns as an integer.
+        """
+        return self.__cols
+
+    def get_tile(self, row, column) -> pygame.Surface:
+        """
+        Get a specific tile on the sheet. The surface returned will not be a copy but a sub-surface of
+        the tile-sheet. This means that if the tile-sheet changes, this tile will also change since it
+        shares pixel data.
+        :param row: The row (starting at zero) to look at.
+        :param column: The column (starting at zero) to look at.
+        :return: The tile as a pygame sub-surface.
+        """
+        x = column * self.__cell_width
+        y = row * self.__cell_height
+        return self.__surface.subsurface((x, y, self.__cell_width, self.__cell_height))
+
+
+class SpriteSheet:
+    pass
+
+
 class AssetManager:
     """
     The asset manager acts as a universal asset cache. It is used to load assets before they are needed
@@ -29,6 +82,7 @@ class AssetManager:
         self.__image_exts = ['.png', '.jpg', '.jpeg', '.bmp']
         self.__exts = self.__image_exts
         self.__surfaces = {}
+        self.__tilesheets = {}
 
     def __load(self):
         # This wait call is awful but it is needed because if we are starting to load and we just switched to
@@ -84,6 +138,15 @@ class AssetManager:
             else:
                 self.__surfaces[n] = self.__surfaces[n].convert()
                 self.__surfaces[n].set_alpha(None)
+        elif data['type'] == 'tilesheet':
+            image = pygame.image.load(fname)
+            # Like all visuals in league, transparency can be disabled for performance and often will
+            # be for tile-maps.
+            if data['alpha']:
+                image = image.convert_alpha()
+            else:
+                image = image.convert()
+            self.__tilesheets[n] = TileSheet(image, data['rows'], data['columns'])
         else:
             raise IOError('Unidentified asset of type %s.' % data['type'])
 
@@ -137,3 +200,11 @@ class AssetManager:
         :return: The cached pygame surface.
         """
         return self.__surfaces[name]
+
+    def get_tilesheet(self, name: str) -> TileSheet:
+        """
+        Find a tile-sheet that was automatically loaded.
+        :param name: The name of the tile-sheet (without the extension).
+        :return: The cached tile-sheet asset.
+        """
+        return self.__tilesheets[name]
