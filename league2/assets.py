@@ -127,8 +127,8 @@ class AssetManager:
         # Look for a JSON file that will contain asset settings. JSON files are only needed if an asset
         # should be loaded with special settings.
         data = self.__fill_defaults(ext)
-        if os.path.isfile(n + '.json'):
-            json_file = open(n + '.json', 'r')
+        if os.path.isfile(os.path.splitext(fname)[0] + '.json'):
+            json_file = open(os.path.splitext(fname)[0] + '.json', 'r')
             data = json.loads(json_file.read())
             json_file.close()
         # Based on the asset type, load it correctly.
