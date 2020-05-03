@@ -62,6 +62,7 @@ class Settings:
         self.__game_size = (640, 480)
         self.__size = self.__game_size
         self.__native_size = pygame.display.Info().current_w, pygame.display.Info().current_h
+        self.__use_native_size = True
         self.__fps = 40
         self.__asset_folder = '../assets'
         self.__preload_files = []
@@ -162,12 +163,16 @@ class Settings:
         """
         return self.__fullscreen
 
-    def set_fullscreen(self, fullscreen: bool):
+    def set_fullscreen(self, fullscreen: bool, desktop_resolution: typing.Optional[bool] = True):
         """
         Should the game be running in a window or fullscreen? Must call apply_settings() to take affect.
+        Optionally, you can tell the engine to use the game's resolution instead of the desktop resolution. Usually
+        you will want to use the desktop resolution but there can be situations where you don't want that.
         :param fullscreen: True for fullscreen and false for window.
+        :param desktop_resolution: Should the engine use the desktop's resolution or the game's resolution.
         """
         self.__fullscreen = fullscreen
+        self.__use_native_size = desktop_resolution
 
     def set_buffer_size(self, size: typing.Tuple[int, int]):
         """
@@ -193,7 +198,7 @@ class Settings:
         of that the game can render to.
         :return: The size as a tuple.
         """
-        if self.__fullscreen:
+        if self.__fullscreen and self.__use_native_size:
             return self.__native_size
         else:
             return self.__size
