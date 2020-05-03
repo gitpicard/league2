@@ -208,6 +208,10 @@ class AssetManager:
             raise IOError('Unidentified asset of type %s.' % data['type'])
 
     def set_root(self, root: str):
+        """
+        Change the base directory that assets are loaded from. Do not change during a load.
+        :param root: The new root directory.
+        """
         self.__root = root
 
     def start(self, preload: typing.List[str], root: str = None):
