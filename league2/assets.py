@@ -121,10 +121,12 @@ class AssetManager:
         self.__files = []
         self.__cached_files = []
         self.__image_exts = ['.png', '.jpg', '.jpeg', '.bmp']
-        self.__exts = self.__image_exts
+        self.__font_exts = ['.ttf']
+        self.__exts = self.__image_exts + self.__font_exts
         self.__surfaces = {}
         self.__tilesheets = {}
         self.__spritesheets = {}
+        self.__fonts = {}
 
     def __load(self):
         # This wait call is awful but it is needed because if we are starting to load and we just switched to
@@ -149,6 +151,13 @@ class AssetManager:
                 'type': 'sprite',
                 'alpha': 'True'
             }
+        elif ext in self.__font_exts:
+            return {
+                'type': 'font',
+                'size': 12
+            }
+        else:
+            raise RuntimeError('Unknown asset type %s.' % ext)
 
     def __load_file(self, fname):
         # Some files may already have been loaded during preloading so make sure that
@@ -204,6 +213,8 @@ class AssetManager:
             # an array of integers.
             for spr in data['sprites'].keys():
                 self.__spritesheets[n].add_sprite(spr, tuple(data['sprites'][spr]))
+        elif data['type'] == 'font':
+            self.__fonts[n] = pygame.font.Font(fname, data['size'])
         else:
             raise IOError('Unidentified asset of type %s.' % data['type'])
 
@@ -281,3 +292,11 @@ class AssetManager:
         :return: The cached sprite-sheet asset.
         """
         return self.__spritesheets[name]
+
+    def get_font(self, name: str) -> pygame.font.Font:
+        """
+        Find a true-type font that was loaded.
+        :param name: The name of the font without the file extension.
+        :return: A font object that can be used to render surfaces.
+        """
+        return self.__fonts[name]

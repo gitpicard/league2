@@ -3,6 +3,7 @@ import os
 import json
 import appdirs
 import league2.assets
+import league2.gui
 import typing
 import abc
 
@@ -299,6 +300,7 @@ class Application(abc.ABC):
         self.__done = False
         self.__settings = settings
         self.__assets = league2.assets.AssetManager(settings.get_asset_folder())
+        self.__gui = None
         self.__clock = pygame.time.Clock()
         self.__screen = None
         self.__buffer = pygame.Surface(self.__settings.get_buffer_size())
@@ -376,6 +378,20 @@ class Application(abc.ABC):
         """
         return self.__assets
 
+    def set_root_gui_container(self, container: league2.gui.Container):
+        """
+        Set the root element and layout of the game's GUI.
+        :param container: The class that will layout the GUI controls.
+        """
+        self.__gui = container
+
+    def get_root_gui_container(self) -> league2.gui.Container:
+        """
+        Get the layout and list of elements currently being used for the game's GUI.
+        :return: A container responsible for rendering GUI controls.
+        """
+        return self.__gui
+
     def apply_settings(self):
         """
         Applies the settings from the settings object to this game. This is a rather slow function as it
@@ -397,6 +413,14 @@ class Application(abc.ABC):
         self.__assets.set_root(self.__settings.get_asset_folder())
         # Change the name of the window.
         pygame.display.set_caption(self.__settings.get_title())
+
+    def get_fps(self) -> int:
+        """
+        Get the number of frames processed per second on average. This is the real frame rate and not the
+        target frame rate specified in the settings.
+        :return: An integer frame rate.
+        """
+        return int(self.__clock.get_fps())
 
     def run(self):
         """
@@ -426,6 +450,10 @@ class Application(abc.ABC):
             # Let the game handle updating and drawing it's state.
             self.on_update(frame_time)
             self.on_draw(frame_time)
+
+            # GUI is drawn at the end on top of everything else.
+            if self.__gui is not None:
+                self.__gui.render(self.__buffer, (0, 0, self.__buffer.get_width(), self.__buffer.get_height()))
 
             # Scale our game up so that it fits nicely onto the screen without any stretching or showing more
             # of the game. We scale up to preserve aspect ratio. This is one of the slower parts of the game
